@@ -46,6 +46,58 @@ cargo build --release
 cp target/release/dropdir /usr/local/bin/
 ```
 
+## 部署到 Fly.io
+
+项目附带的 Fly 配置会在东京(`nrt`)运行一台 shared CPU、256 MiB 内存的
+machine,并将 1 GiB 持久化卷挂载到 `/data`。卷根目录中的 `lost+found` 是文件系统
+为检查和恢复预留的目录,不应删除。容器启动时会自动创建 `/data/files`,并只将该
+子目录作为服务目录,因此首次部署后服务显示为空目录。machine 会在空闲时自动停止,
+并在收到请求时自动启动。Fly 托管的 HTTPS 地址为 `https://dropdir.fly.dev`,
+无需手动分配 IP。
+
+先使用 `flyctl` 登录 Fly.io,并安装 `just`,然后创建应用和卷并部署:
+
+```bash
+just setup
+just deploy
+```
+
+设置或更新 Fly secret 中的客户端验证 token(不带参数时会隐藏输入):
+
+```bash
+just update-token
+# 或: just update-token "your-token"
+```
+
+`flyctl secrets set` 会更新 secret 并重启应用中的 Machine,使新 token 立即生效。
+页面标题可通过 `DROPDIR_TITLE` 环境变量配置;使用 `just update-title` 更新后,
+Fly 会重启 Machine,新标题会在重启完成后的页面请求中生效。虽然标题不是敏感信息,
+这里仍沿用 Fly secret 存储机制。
+
+```bash
+just update-title
+# 或: just update-title "我的文件"
+```
+
+管理员可以通过 `just get-token` 和 `just get-title` 从运行中的 Machine 读取当前配置;
+如果 Machine 因空闲而停止,命令会先启动一个 Machine,因此需要安装 `jq`。服务不会将来自
+`DROPDIR_TOKEN` secret 的 token 写入启动日志。`just teardown` 会销毁 Fly 应用
+及其关联资源,包括持久化卷及其中的全部文件。
+
+管理员还可以用 Fly SSH 管理服务数据目录(需要 `flyctl` 和 `jq`):
+
+```bash
+just list
+just upload "/本地/目录"
+just download "/本地/目录"
+```
+
+`just list` 递归列出远程内容;`just upload` 会用本地目录中的内容**替换**
+远程服务数据目录(包括隐藏文件,不包含本地目录本身),先传输到暂存目录,全部传完后
+才切换,因此传输失败时现有远程数据保持不变。`just download` 会将远程内容复制到
+指定目录,并与该目录现有内容合并,不会清空本地目录;若文件路径冲突,远程文件会覆盖
+本地同名文件。
+
 ## 使用
 
 ```text

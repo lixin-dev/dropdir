@@ -46,6 +46,69 @@ cargo build --release
 cp target/release/dropdir /usr/local/bin/
 ```
 
+## Deploy to Fly.io
+
+The included Fly configuration runs one shared CPU machine with 256 MiB of
+memory in Tokyo (`nrt`) and mounts a 1 GiB persistent volume at `/data`. The
+filesystem's `lost+found` directory at the volume root is reserved for
+filesystem checks and recovery and should not be removed. On startup, the
+container creates `/data/files` and serves that subdirectory, so the service
+starts with an empty file list. The machine automatically stops when idle and
+starts again when a request arrives. Fly's managed HTTPS endpoint is available at
+`https://dropdir.fly.dev`; no IP allocation is required.
+
+With `flyctl` authenticated to Fly.io and `just` installed, create the app and
+volume and deploy:
+
+```bash
+just setup
+just deploy
+```
+
+Set or update the client token stored as a Fly secret (without an argument,
+the target prompts for it without echoing the value):
+
+```bash
+just update-token
+# Or: just update-token "your-token"
+```
+
+`flyctl secrets set` updates the secret and restarts the app's Machines, so the
+new token takes effect immediately. An administrator can retrieve the current
+token or page title from a running Machine with `just get-token` or
+`just get-title`. If the Machine has autostopped, these targets start one first
+and require `jq`. Tokens supplied
+through the `DROPDIR_TOKEN` secret are omitted from startup logs.
+
+Set the page title with the `DROPDIR_TITLE` environment variable. Although the
+title is not sensitive, `just update-title` stores it as a Fly secret; Fly
+restarts the Machine and the new title is served after restart:
+
+```bash
+just update-title
+# Or: just update-title "My files"
+```
+
+`just teardown` destroys the Fly app and its associated resources, including
+the persistent volume and its contents.
+
+Administrators can also manage the service data directory over Fly SSH (requires
+`flyctl` and `jq`):
+
+```bash
+just list
+just upload "/path/to/local/directory"
+just download "/path/to/local/directory"
+```
+
+`just list` recursively lists remote contents. `just upload` **replaces** the
+remote service data directory contents with the local directory contents,
+including hidden files but not the local directory itself. It uploads to a
+staging directory first and switches only after the transfer completes, so a
+failed transfer leaves the active remote data unchanged. `just download` copies
+remote contents into the specified local directory, merging with existing
+contents without clearing it; files with matching paths are overwritten.
+
 ## Usage
 
 ```text

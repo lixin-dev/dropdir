@@ -2,8 +2,8 @@
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>dropdir</title>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+<title>__DROPDIR_TITLE__</title>
 <style>
 :root {
   --bg: #0f1115;
@@ -54,6 +54,7 @@ main { padding: 14px 16px 40px; max-width: 1280px; margin: 0 auto; }
 .filter:focus { border-color: var(--accent); }
 
 .toolbar { display: flex; gap: 8px; margin-bottom: 10px; flex-wrap: wrap; }
+.toolbar > .spacer { flex: 1; }
 
 button, .btn { cursor: pointer; background: var(--panel); color: var(--text); border: 1px solid var(--border);
   padding: 6px 12px; border-radius: 4px; font-size: 13px; transition: background 0.12s, border-color 0.12s; }
@@ -167,11 +168,203 @@ td.actions button { margin-left: 4px; padding: 3px 8px; font-size: 12px; }
 .modal .hint.err { color: var(--danger); }
 .modal .foot { display: flex; justify-content: flex-end; gap: 8px; padding: 14px 18px 16px; }
 .modal .foot button { min-width: 72px; }
+
+.mobile-sort { display: none; }
+
+@media (max-width: 640px) {
+  header.top {
+    gap: 8px;
+    padding: calc(10px + env(safe-area-inset-top)) 12px 10px;
+  }
+  header.top .hint,
+  header.top .spacer { display: none; }
+
+  main {
+    padding: 12px 12px calc(28px + env(safe-area-inset-bottom));
+  }
+  .bar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .breadcrumb {
+    flex: none;
+    min-width: 0;
+    width: 100%;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    white-space: nowrap;
+  }
+  .filter {
+    width: 100%;
+    min-height: 44px;
+    font-size: 16px;
+  }
+
+  .toolbar { gap: 8px; }
+  .toolbar > .spacer { display: none; }
+  .toolbar > button {
+    flex: 1 1 calc(50% - 4px);
+    min-height: 44px;
+  }
+  #countInfo {
+    flex: 1 0 100%;
+    order: 1;
+    padding: 2px 0;
+  }
+  .mobile-sort {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 1 0 100%;
+    order: 2;
+    color: var(--muted);
+    font-size: 12px;
+  }
+  .mobile-sort select {
+    flex: 1;
+    min-width: 0;
+    min-height: 40px;
+    padding: 6px 8px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text);
+    font: inherit;
+  }
+
+  #listing > table {
+    display: block;
+    overflow: visible;
+    border: 0;
+    background: transparent;
+  }
+  #listing colgroup,
+  #listing thead { display: none; }
+  #listing tbody {
+    display: grid;
+    gap: 8px;
+  }
+  #listing tr.row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    align-items: center;
+    padding: 8px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+  }
+  #listing tr.row.selected {
+    border-color: var(--accent);
+    box-shadow: inset 2px 0 0 var(--accent);
+  }
+  #listing tr.row:hover td,
+  #listing tr.row.selected td { background: transparent; }
+  #listing td {
+    min-width: 0;
+    padding: 5px 4px;
+    overflow: hidden;
+    white-space: normal;
+    border: 0;
+  }
+  #listing td.name {
+    grid-column: 1 / -1;
+    padding-bottom: 8px;
+    font-size: 13px;
+  }
+  #listing td.name a {
+    min-width: 0;
+    white-space: nowrap;
+  }
+  #listing td[data-label] {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    color: var(--muted);
+    font-size: 12px;
+  }
+  #listing td.mtime { grid-column: 1 / -1; }
+  #listing td[data-label]::before {
+    content: attr(data-label);
+    flex: 0 0 auto;
+    color: var(--muted);
+  }
+  #listing td.actions {
+    display: flex;
+    grid-column: 1 / -1;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+    text-align: left;
+    white-space: normal;
+    padding-top: 8px;
+    border-top: 1px solid var(--border);
+  }
+  #listing td.actions button {
+    flex: 1 1 auto;
+    min-height: 40px;
+    margin: 0;
+    padding: 6px 8px;
+  }
+
+  .editor { height: 100vh; height: 100dvh; }
+  .editor .ebar {
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 10px 12px;
+    padding-top: calc(10px + env(safe-area-inset-top));
+  }
+  .editor .title { flex: 1 1 calc(100% - 84px); }
+  .editor .info { margin-right: 0; }
+  .editor .ebar button {
+    flex: 1 1 calc(50% - 4px);
+    min-height: 44px;
+    white-space: nowrap;
+  }
+  .editor textarea {
+    min-height: 0;
+    padding: 12px;
+    padding-bottom: calc(12px + env(safe-area-inset-bottom));
+    font-size: 14px;
+  }
+
+  #dropzone .box {
+    width: calc(100% - 32px);
+    padding: 32px 16px;
+    font-size: 16px;
+    overflow-wrap: anywhere;
+  }
+  #dropzone .box .sub { overflow-wrap: anywhere; }
+  #uploads {
+    right: 12px;
+    bottom: calc(12px + env(safe-area-inset-bottom));
+    left: 12px;
+    width: auto;
+    max-height: 45vh;
+    overflow-y: auto;
+  }
+  .status {
+    right: 12px;
+    bottom: calc(12px + env(safe-area-inset-bottom));
+    left: 12px;
+    width: auto;
+    max-width: none;
+  }
+  .modal {
+    align-items: flex-end;
+    padding: 12px 12px calc(12px + env(safe-area-inset-bottom));
+  }
+  .modal .card {
+    width: 100%;
+    max-height: calc(100% - 12px);
+    overflow-y: auto;
+  }
+  .modal .input { font-size: 16px; }
+  .modal .foot button { min-height: 44px; }
+}
 </style>
 </head>
 <body>
 <header class="top">
-  <h1>dropdir</h1>
+  <h1>__DROPDIR_TITLE__</h1>
   <span class="tag">本地文件管理</span>
   <span class="spacer"></span>
   <span class="hint">
@@ -188,8 +381,19 @@ td.actions button { margin-left: 4px; padding: 3px 8px; font-size: 12px; }
     <button class="primary" onclick="document.getElementById('fileInput').click()">⬆ 上传文件</button>
     <button onclick="newTextFile()">＋ 新建文本</button>
     <button onclick="refresh()" title="刷新 (R)">⟳ 刷新</button>
-    <span style="flex:1"></span>
+    <span class="spacer"></span>
     <span id="countInfo" style="color:var(--muted); font-size:12px;"></span>
+    <label class="mobile-sort" for="mobileSort">
+      排序
+      <select id="mobileSort">
+        <option value="name:asc">名称 ↑</option>
+        <option value="name:desc">名称 ↓</option>
+        <option value="size:asc">大小 ↑</option>
+        <option value="size:desc">大小 ↓</option>
+        <option value="modified:asc">修改时间 ↑</option>
+        <option value="modified:desc">修改时间 ↓</option>
+      </select>
+    </label>
     <input id="fileInput" type="file" multiple onchange="uploadFiles(this.files); this.value='';" />
   </div>
   <div id="listing"></div>
@@ -581,6 +785,7 @@ function rerender() {
   info.textContent = filterText
     ? `${viewEntries.length} / ${rawEntries.length} 项(筛选中)`
     : `${totalDirs} 个目录 · ${totalFiles} 个文件`;
+  document.getElementById("mobileSort").value = sortKey + ":" + sortDir;
 
   renderTable();
 }
@@ -636,11 +841,13 @@ function renderTable() {
 
     const sizeTd = document.createElement("td");
     sizeTd.className = "size";
+    sizeTd.dataset.label = "大小";
     sizeTd.textContent = e.is_dir ? "—" : fmtSize(e.size);
     tr.appendChild(sizeTd);
 
     const mtd = document.createElement("td");
     mtd.className = "mtime";
+    mtd.dataset.label = "修改时间";
     mtd.textContent = fmtTime(e.modified);
     tr.appendChild(mtd);
 
@@ -968,6 +1175,11 @@ function goUp() {
 document.getElementById("filterInput").addEventListener("input", (ev) => {
   filterText = ev.target.value || "";
   selectedIndex = filterText ? 0 : -1;
+  rerender();
+});
+
+document.getElementById("mobileSort").addEventListener("change", (ev) => {
+  [sortKey, sortDir] = ev.target.value.split(":");
   rerender();
 });
 

@@ -57,6 +57,7 @@ OPTIONS:
     --open              Shortcut for --host 0.0.0.0 (expose to LAN)
     --port <PORT>       Port (default: {DEFAULT_PORT})
     --token <TOKEN>     Use the given auth token instead of a random one
+                        (overrides the DROPDIR_TOKEN environment variable)
     --no-auth           Disable auth. DANGEROUS on shared networks.
     -h, --help          Show this help and exit
 
@@ -67,8 +68,9 @@ EXAMPLES:
 
 SECURITY:
     * Defaults to 127.0.0.1 only; use --open to expose on the LAN.
-    * A random 128-bit auth token is generated at startup unless --no-auth
-      or --token is passed. Open the printed URL in your browser.
+    * A random 128-bit auth token is generated at startup unless --no-auth,
+      --token, or DROPDIR_TOKEN is set. Open the printed URL in your browser.
+    * The page title can be customized with the DROPDIR_TITLE environment variable.
     * Upload/edit of native-executable or shell-script filenames is refused.
     * Symlinks are not written through; path traversal is blocked."
     );
@@ -181,6 +183,19 @@ async fn main() -> anyhow::Result<()> {
         bail!("not a directory: {}", cwd.display());
     }
 
+    let env_token = if args.no_auth || args.token.is_some() {
+        None
+    } else {
+        match std::env::var("DROPDIR_TOKEN") {
+            Ok(token) => Some(token),
+            Err(std::env::VarError::NotPresent) => None,
+            Err(std::env::VarError::NotUnicode(_)) => {
+                return Err(anyhow!("DROPDIR_TOKEN must be valid UTF-8"));
+            }
+        }
+    };
+    let token_from_env = env_token.is_some();
+
     let token = if args.no_auth {
         String::new()
     } else if let Some(t) = args.token {
@@ -188,13 +203,30 @@ async fn main() -> anyhow::Result<()> {
             return Err(anyhow!("--token cannot be empty (use --no-auth instead)"));
         }
         t
+    } else if let Some(t) = env_token {
+        if t.is_empty() {
+            return Err(anyhow!(
+                "DROPDIR_TOKEN cannot be empty (unset it to use a random token)"
+            ));
+        }
+        t
     } else {
         random_token()?
+    };
+
+    let title = match std::env::var("DROPDIR_TITLE") {
+        Ok(title) if !title.is_empty() => title,
+        Ok(_) => return Err(anyhow!("DROPDIR_TITLE cannot be empty")),
+        Err(std::env::VarError::NotPresent) => "dropdir".to_string(),
+        Err(std::env::VarError::NotUnicode(_)) => {
+            return Err(anyhow!("DROPDIR_TITLE must be valid UTF-8"));
+        }
     };
 
     let state = Arc::new(AppState {
         root: cwd.clone(),
         token: token.clone(),
+        title,
     });
 
     let mut app = Router::new()
@@ -221,7 +253,7 @@ async fn main() -> anyhow::Result<()> {
         .await
         .with_context(|| format!("bind {addr}"))?;
 
-    let token_suffix = if token.is_empty() {
+    let token_suffix = if token.is_empty() || token_from_env {
         String::new()
     } else {
         format!("?t={token}")
@@ -235,6 +267,8 @@ async fn main() -> anyhow::Result<()> {
     }
     if token.is_empty() {
         println!("  auth       : DISABLED (--no-auth)");
+    } else if token_from_env {
+        println!("  auth       : enabled (DROPDIR_TOKEN; token omitted from logs)");
     } else {
         println!("  auth token : {token}");
     }

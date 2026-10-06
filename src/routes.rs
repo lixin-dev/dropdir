@@ -20,6 +20,7 @@ pub struct AppState {
     pub root: PathBuf,
     /// Auth token. Empty string = auth disabled (--no-auth).
     pub token: String,
+    pub title: String,
 }
 
 pub type SharedState = Arc<AppState>;
@@ -133,13 +134,33 @@ fn add_security_headers(mut resp: Response) -> Response {
     resp
 }
 
-pub async fn index() -> Response {
+fn escape_html(value: &str) -> String {
+    let mut escaped = String::with_capacity(value.len());
+    for ch in value.chars() {
+        match ch {
+            '&' => escaped.push_str("&amp;"),
+            '<' => escaped.push_str("&lt;"),
+            '>' => escaped.push_str("&gt;"),
+            '"' => escaped.push_str("&quot;"),
+            '\'' => escaped.push_str("&#39;"),
+            _ => escaped.push(ch),
+        }
+    }
+    escaped
+}
+
+fn render_index(title: &str) -> String {
+    INDEX_HTML.replace("__DROPDIR_TITLE__", &escape_html(title))
+}
+
+pub async fn index(State(state): State<SharedState>) -> Response {
     let mut headers = HeaderMap::new();
     headers.insert(
         header::CONTENT_TYPE,
         HeaderValue::from_static("text/html; charset=utf-8"),
     );
-    (headers, INDEX_HTML).into_response()
+    let html = render_index(&state.title);
+    (headers, html).into_response()
 }
 
 #[derive(Deserialize)]
@@ -458,6 +479,18 @@ pub async fn download(
     );
 
     Ok((headers, body).into_response())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::render_index;
+
+    #[test]
+    fn renders_title_as_escaped_text_and_document_title() {
+        let html = render_index("<My & files>");
+        assert_eq!(html.matches("&lt;My &amp; files&gt;").count(), 2);
+        assert!(!html.contains("__DROPDIR_TITLE__"));
+    }
 }
 
 fn percent_decode_lossy(s: &str) -> String {
