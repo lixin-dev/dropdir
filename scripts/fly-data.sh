@@ -74,28 +74,32 @@ case "$action" in
         suffix="$(date +%s)-$$"
         stage="/data/.dropdir-upload-$suffix"
         backup="/data/.dropdir-backup-$suffix"
+        remote_archive="/data/.dropdir-upload-$suffix.tar.gz"
 
-        echo "Staging local contents in $stage; active remote data is unchanged until transfer completes."
-        ssh_console "mkdir -- '$stage'"
+        require_command tar
+        temp_dir=$(mktemp -d "${TMPDIR:-/tmp}/dropdir-upload.XXXXXX")
+        archive="$temp_dir/payload.tar.gz"
+        trap 'rm -rf -- "$temp_dir"' EXIT
+        tar -czf "$archive" -C "$source_dir" .
+
+        echo "Uploading archive to $remote_archive; active remote data is unchanged until transfer completes."
         cleanup_stage() {
             local status=$?
             trap - EXIT
-            if [[ -n "$stage" ]] && ! ssh_console "rm -rf -- '$stage'" >/dev/null; then
-                echo "Warning: could not remove incomplete staging directory $stage." >&2
+            local remote_cleanup="rm -f -- '$remote_archive'"
+            if [[ -n "$stage" ]]; then
+                remote_cleanup="rm -rf -- '$stage' '$remote_archive'"
             fi
+            if ! ssh_console "$remote_cleanup" >/dev/null; then
+                echo "Warning: could not remove upload staging files from the remote machine." >&2
+            fi
+            rm -rf -- "$temp_dir"
             exit "$status"
         }
         trap cleanup_stage EXIT
 
-        shopt -s dotglob nullglob
-        for entry in "$source_dir"/*; do
-            name=${entry##*/}
-            if [[ -d "$entry" && ! -L "$entry" ]]; then
-                sftp put --recursive "$entry" "$stage/$name"
-            else
-                sftp put "$entry" "$stage/$name"
-            fi
-        done
+        sftp put "$archive" "$remote_archive"
+        ssh_console "mkdir -- '$stage' && tar -xzf '$remote_archive' -C '$stage'"
 
         ssh_console "test -d /data/files"
         ssh_console "mv -- /data/files '$backup'"
@@ -109,24 +113,39 @@ case "$action" in
             exit 1
         fi
         stage=""
+        ssh_console "rm -f -- '$remote_archive'"
         ssh_console "rm -rf -- '$backup'"
         trap - EXIT
+        rm -rf -- "$temp_dir"
         echo "Replaced remote data directory contents with '$source_dir'."
         ;;
     download)
         mkdir -p -- "$directory"
         destination_dir=$(cd -- "$directory" && pwd -P)
+        require_command tar
         temp_dir=$(mktemp -d "${TMPDIR:-/tmp}/dropdir-download.XXXXXX")
-        trap 'rm -rf -- "$temp_dir"' EXIT
+        remote_archive="/data/.dropdir-download-$(date +%s)-$$.tar.gz"
 
-        sftp get --recursive /data/files "$temp_dir/payload"
+        cleanup_download() {
+            local status=$?
+            trap - EXIT
+            if ! ssh_console "rm -f -- '$remote_archive'" >/dev/null; then
+                echo "Warning: could not remove remote download archive $remote_archive." >&2
+            fi
+            rm -rf -- "$temp_dir"
+            exit "$status"
+        }
+        trap cleanup_download EXIT
+
+        ssh_console "tar -czf '$remote_archive' -C /data/files ."
+        sftp get "$remote_archive" "$temp_dir/payload.tar.gz"
+        mkdir -- "$temp_dir/payload"
+        tar -xzf "$temp_dir/payload.tar.gz" -C "$temp_dir/payload"
         cp -a -- "$temp_dir/payload/." "$destination_dir/"
 
-        empty_dirs=$(ssh_console "find /data/files -mindepth 1 -type d -empty -printf '%P\n'")
-        while IFS= read -r relative_dir; do
-            [[ -n "$relative_dir" ]] || continue
-            mkdir -p -- "$destination_dir/$relative_dir"
-        done <<<"$empty_dirs"
+        ssh_console "rm -f -- '$remote_archive'"
+        trap - EXIT
+        rm -rf -- "$temp_dir"
         echo "Copied remote data directory contents into '$destination_dir'."
         ;;
     *)

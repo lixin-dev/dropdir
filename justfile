@@ -1,4 +1,4 @@
-app_name := "grad27"
+app_name := env_var_or_default("APP_NAME", "dropdir")
 
 setup:
     flyctl apps create "{{ app_name }}" --yes
